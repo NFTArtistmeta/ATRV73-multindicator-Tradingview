@@ -1,0 +1,868 @@
+///////////////
+//OLD VERSION
+//The volume profile code is by @Eliot66 all the contributions for him, i just added Tradinglatino strategy and other indicators
+// i got the ma calclation and function from  @Eliot66 
+// © Lupown
+//@version=4
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// STUDY
+///////////////////////////////////////////////////////////////////////////////////////////////////
+study(title = "ATRV73 multindicator", shorttitle= "ATRV73 indicator", overlay = true,max_bars_back=1000,max_lines_count=500,max_boxes_count = 200)
+     
+     
+
+//CREDITS 
+//@version = 6
+// © Luis_Kroeger
+//The main Code is by @Lupown, I just modified the code to add new indicators from other authors improving some features and removing indicators
+//The candle volume code is by @andreholanda73,I just added it to this indicator to complete it
+//The volume profile code 3 is by @kv4coins, I just added it to this to improve the existing volume profile from @LuxAlgo
+//The SuperTrend is by @KivancOsbilgic, I used it to know the direction of the market
+//The Pivots code is by @Maga3, thank you a lot, whit this I can determine supports and resistances
+//Support and Resistance code is from @LonesomeTheBlue, I just added it to make it easier to draw support and resistance
+//The Engulfing code is by @rMunoz, I only change some inputs
+//The CME Gaps by NeoButane
+//I added some "groups" to make the indicator easy to understand from the old version of @Lupown
+//I change data inputs to make it more similar to the Dru and FrankX73 strategies
+//I redisign the original idea of @Lupown removing some code and adding other code made by other authors, thank to all of you
+//Everyone is free to change this code 
+
+
+// EMAS
+show_Emas = input(true, title="--------- Show EMAS ---------", group = "EMA")
+
+
+MA1 = input(20, minval=1, title="MA1",inline="ma1")
+string type1 = input('EMA', title='Type MA1', options=["SMA", "EMA", "WMA", "LSMA", "ALMA", "HMA", "KAMA", "RMA", "DEMA", "TEMA", "VWMA", "SWMA", "Wild"],inline="ma1")
+MA2 = input(50, minval=1, title="MA2",inline="ma2")
+string type2 = input('EMA', title='Type MA2', options=["SMA", "EMA", "WMA", "LSMA", "ALMA", "HMA", "KAMA", "RMA", "DEMA", "TEMA", "VWMA", "SWMA", "Wild"],inline="ma2")
+MA3 = input(200, minval=1, title="MA3",inline="ma3")
+string type3 = input('EMA', title='Type MA3', options=["SMA", "EMA", "WMA", "LSMA", "ALMA", "HMA", "KAMA", "RMA", "DEMA", "TEMA", "VWMA", "SWMA", "Wild"],inline="ma3")
+MA4 = input(100, minval=1, title="MA4",inline="ma4")
+string type4 = input('EMA', title='Type MA4', options=["SMA", "EMA", "WMA", "LSMA", "ALMA", "HMA", "KAMA", "RMA", "DEMA", "TEMA", "VWMA", "SWMA", "Wild"],inline="ma4")
+MA5 = input(9, minval=1, title="MA5",inline="ma5")
+string type5 = input('EMA', title='Type MA5', options=["SMA", "EMA", "WMA", "LSMA", "ALMA", "HMA", "KAMA", "RMA", "DEMA", "TEMA", "VWMA", "SWMA", "Wild"],inline="ma5")
+
+
+// Kaufman's Adaptive Moving Average - Fast and Slow Ends
+fastK = 0.666 // KAMA Fast End
+slowK = 0.645 // KAMA Slow End
+kama(x, t)=>
+    dist   = abs(x[0] - x[1])
+    signal = abs(x - x[t])
+    noise  = sum(dist, t)
+    effr   = noise!=0 ? signal/noise : 1
+    sc     = pow(effr*(fastK - slowK) + slowK,2)
+    kama   = x
+    kama  := nz(kama[1]) + sc*(x - nz(kama[1]))
+    kama
+
+ma(MAType, MASource, MAPeriod) =>
+    if MAPeriod > 0
+        if MAType == "SMA"
+            sma(MASource, MAPeriod)
+        else if MAType == "LSMA"
+            linreg(MASource, MAPeriod, 0)
+        else if MAType == "EMA"
+            ema(MASource, MAPeriod)
+        else if MAType == "WMA"
+            wma(MASource, MAPeriod)
+        else if MAType == "RMA"
+            rma(MASource, MAPeriod)
+        else if MAType == "HMA"
+            hma(MASource, MAPeriod)
+        else if MAType == "DEMA"
+            e = ema(MASource, MAPeriod)
+            2 * e - ema(e, MAPeriod)
+        else if MAType == "TEMA"
+            e = ema(MASource, MAPeriod)
+            3 * (e - ema(e, MAPeriod)) + ema(ema(e, MAPeriod), MAPeriod)
+        else if MAType == "VWMA"
+            vwma(MASource, MAPeriod)
+        else if MAType == "ALMA"
+            alma(MASource, MAPeriod, 6, .85)
+        else if MAType == "SWMA" 
+            swma(MASource)
+        else if MAType == "KAMA"
+            kama(MASource, MAPeriod)
+        else if MAType == "Wild"
+            wild = MASource
+            wild := nz(wild[1]) + (MASource - nz(wild[1])) / MAPeriod 
+
+
+
+plot(show_Emas ? ma(type1,close,MA1) : na, color=#FFFFFF, linewidth=3, title="MA1")
+plot(show_Emas ? ma(type2,close,MA2) : na, color=#FFFF00, linewidth=3, title="MA2")
+plot(show_Emas ? ma(type3,close,MA3) : na, color=#FF0000, linewidth=3, title="MA2")
+plot(show_Emas ? ma(type4,close,MA4) : na, color=#ADD8E6, linewidth=3, title="MA2")
+plot(show_Emas ? ma(type5,close,MA5) : na, color=#B45F04, linewidth=3, title="MA5")
+
+
+
+//////////////////////////////////////////////////////
+/////////VWAP
+/////////////////////////////////////////////////////
+
+displayVW = input(true, title="------Show VWAP--------", group = "VWAP")
+vwp = displayVW ? vwap : na
+plot( vwp, color=#6a0dad,  title="VWAP", linewidth=2)
+
+
+//////////////
+///// END VWAP
+////////////
+
+
+	 
+
+//////////////////
+/////BUYSELLSIGNALS
+///////////////////////////
+
+
+//Momentum
+sz  = linreg(close - avg(avg(highest(high, 20), lowest(low, 20)), sma(close, 20)), 20, 0)
+//ADX
+adxlen   =  14 //input(14,    title = "ADX Smoothing")
+dilen    = 14  //input(14,    title = "DI Length") 
+keyLevel =  23 //input(23,    title = "Key level for ADX")
+
+dirmov(len) =>
+	up = change(high)
+	down = -change(low)
+	truerange = rma(tr, len)
+	plus = fixnan(100 * rma(up > down and up > 0 ? up : 0, len) / truerange)
+	minus = fixnan(100 * rma(down > up and down > 0 ? down : 0, len) / truerange)
+	[plus, minus]
+
+adx(dilen, adxlen) => 
+	[plus, minus] = dirmov(dilen)
+	sum = plus + minus
+	adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), adxlen)
+	[adx, plus, minus]
+
+[adxValue, diplus, diminus] = adx(dilen, adxlen)
+
+lbR = input(title="Pivot Lookback Right", defval=1)
+lbL = input(title="Pivot Lookback Left", defval=1)
+
+//FUNCTIONS
+plFound(osc) => na(pivotlow(osc, lbL, lbR)) ? false : true
+phFound(osc) => na(pivothigh(osc, lbL, lbR)) ? false : true
+
+
+
+//////////////////////////
+///////// DIVERGENCIAS
+/////////////////////
+
+
+
+show_div=input(true,title="------Divergencias--------", group = "SQMOM DIVERGENCES")
+//lbR = input(title="Pivot Lookback Right", defval=1)
+//lbL = input(title="Pivot Lookback Left", defval=1)
+rangeUpper = input(title="Max of Lookback Range", defval=60)
+rangeLower = input(title="Min of Lookback Range", defval=10)
+plotBull = input(title="Plot Bullish", defval=true)
+plotHiddenBull = input(title="Plot Hidden Bullish", defval=true)
+plotBear = input(title="Plot Bearish", defval=true)
+plotHiddenBear = input(title="Plot Hidden Bearish", defval=true)
+
+
+bearColor = #ff0000
+bullColor = #1bff00 
+hiddenBullColor =  #a4ff99 
+hiddenBearColor = #ff9e9e
+textColor = color.white
+noneColor = color.new(color.white, 100)
+
+//FUNCTIONS
+
+
+_inRange(cond) =>
+    bars = barssince(cond == true)
+    rangeLower <= bars and bars <= rangeUpper
+    
+    
+_findDivRB(osc)=>
+    // Osc: Higher Low
+    oscHL = osc[lbR] > valuewhen(plFound(osc), osc[lbR], 1) and _inRange(plFound(osc)[1])
+
+    // Price: Lower Low
+    priceLL = low[lbR] < valuewhen(plFound(osc), low[lbR], 1)
+
+    bullCond = plotBull and priceLL and oscHL and plFound(osc)
+
+
+    //------------------------------------------------------------------------------
+    // Hidden Bullish
+
+    // Osc: Lower Low
+    oscLL = osc[lbR] < valuewhen(plFound(osc), osc[lbR], 1) and _inRange(plFound(osc)[1])
+
+    // Price: Higher Low
+    priceHL = low[lbR] > valuewhen(plFound(osc), low[lbR], 1)
+
+    hiddenBullCond = plotHiddenBull and priceHL and oscLL and plFound(osc)
+
+
+
+    //------------------------------------------------------------------------------
+    // Regular Bearish
+
+    // Osc: Lower High
+    oscLH = osc[lbR] < valuewhen(phFound(osc), osc[lbR], 1) and _inRange(phFound(osc)[1])
+
+    // Price: Higher High
+    priceHH = high[lbR] > valuewhen(phFound(osc), high[lbR], 1)
+
+    bearCond = plotBear and priceHH and oscLH and phFound(osc)
+
+
+
+    //------------------------------------------------------------------------------
+    // Hidden Bearish
+
+    // Osc: Higher High
+    oscHH = osc[lbR] > valuewhen(phFound(osc), osc[lbR], 1) and _inRange(phFound(osc)[1])
+
+    // Price: Lower High
+    priceLH = high[lbR] < valuewhen(phFound(osc), high[lbR], 1)
+
+    hiddenBearCond = plotHiddenBear and priceLH and oscHH and phFound(osc)
+    
+    [bullCond,hiddenBullCond,bearCond,hiddenBearCond]
+    
+
+
+
+[sz_bullCond,sz_hiddenBullCond,sz_bearCond,sz_hiddenBearCond]=_findDivRB(sz)
+
+
+foundDivBSZ = plFound(sz)  and show_div ? true : false 
+colordivBSZ = sz_bullCond ? bullColor : sz_hiddenBullCond ? hiddenBullColor : noneColor
+
+textoDivBull = sz_bullCond ? " | Divergencia alcista" : sz_hiddenBullCond ? " | Divergencia alcista oculta | " : ""
+
+foundDivBeSZ = phFound(sz)  and show_div ? true : false
+colordivBeSZ = sz_bearCond ? bearColor : sz_hiddenBearCond ? hiddenBearColor : noneColor
+
+textoDivBear = sz_bearCond ? " | Divergencia bajista | " : sz_hiddenBearCond ? " | Divergencia bajista oculta | " : ""
+
+foundDiv = plFound(sz) and sz_bullCond or plFound(sz) and sz_hiddenBullCond or phFound(sz) and sz_bearCond or phFound(sz) and sz_hiddenBearCond ? true : false
+plot(
+	 foundDivBSZ ? low[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bullish",
+	 linewidth=1,
+	 color=colordivBSZ,
+	 transp=0
+	 )
+plot(
+	 foundDivBeSZ ? high[lbR] : na,
+	 offset=-lbR,
+	 title="Regular Bearish",
+	 linewidth=1,
+	 color=colordivBeSZ,
+	 transp=0
+	 )
+
+
+/////////////////
+/////otro VP by @ LonesomeTheBlue
+///////////////
+
+show_vp2 = input(false, title = "------------Show 2 Volume Proifle------------", group = "VP")
+bbars = input(title="Number of Bars", defval = 150, minval = 1, maxval = 500)
+cnum = input(title="Row Size", defval = 24, minval = 5, maxval = 100)
+percent = input(70., title="Value Area Volume %", minval = 0, maxval = 100)
+poc_color1 = input(defval = #ff0000, title = "POC", inline = "poc")
+poc_width = input(defval = 2, title = "", minval = 1, maxval = 5, inline = "poc")
+vup_color = input(defval = color.new(color.blue, 30), title = "Value Area Up")
+vdown_color = input(defval = color.new(color.orange, 30), title = "Value Area Down")
+up_color = input(defval = color.new(color.blue, 75), title = "UP Volume")
+down_color = input(defval = color.new(color.orange, 75), title = "Down Volume")
+
+top = highest(bbars)
+bot = lowest(bbars)
+dist = (top - bot) / 500
+step = (top - bot) / cnum
+
+// calculate/keep channel levels
+levels1 = array.new_float(cnum + 1)
+for x = 0 to cnum
+    array.set(levels1, x, bot + step * x)
+
+// get the volume if there is intersection
+get_vol(y11, y12, y21, y22, height, vol)=> nz(max(min(max(y11, y12), max(y21, y22)) - max(min(y11, y12), min(y21, y22)), 0) * vol / height)
+    
+if barstate.islast and show_vp2
+    // calculate/get volume for each channel and candle
+    volumes = array.new_float(cnum * 2, 0.)
+    for bars = 0 to bbars - 1
+        body_top = max(close[bars], open[bars])
+        body_bot = min(close[bars], open[bars])
+        itsgreen = close[bars] >= open[bars]
+        
+        topwick = high[bars] - body_top
+        bottomwick = body_bot - low[bars]
+        body = body_top - body_bot
+        
+        bodyvol = body * volume[bars] / (2 * topwick + 2 * bottomwick + body)
+        topwickvol = 2 * topwick * volume[bars] / (2 * topwick + 2 * bottomwick + body)
+        bottomwickvol = 2 * bottomwick * volume[bars] / (2 * topwick + 2 * bottomwick + body)
+        for x = 0 to cnum - 1
+            array.set(volumes, x, array.get(volumes, x) + 
+                                  (itsgreen ? get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_bot, body_top, body, bodyvol) : 0) + 
+                                  get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_top, high[bars], topwick, topwickvol) / 2 + 
+                                  get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_bot, low[bars], bottomwick, bottomwickvol) / 2)
+            array.set(volumes, x + cnum, array.get(volumes, x + cnum) + 
+                                  (itsgreen ? 0 : get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_bot, body_top, body, bodyvol)) + 
+                                  get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_top, high[bars], topwick, topwickvol) / 2 + 
+                                  get_vol(array.get(levels1, x), array.get(levels1, x + 1), body_bot, low[bars], bottomwick, bottomwickvol) / 2)
+
+    totalvols = array.new_float(cnum, 0.)
+    for x = 0 to cnum - 1
+        array.set(totalvols, x, array.get(volumes, x) + array.get(volumes, x + cnum))
+    
+    int poc = array.indexof(totalvols, array.max(totalvols))
+    
+    // calculate value area
+    totalmax = array.sum(totalvols) * percent / 100.
+    va_total = array.get(totalvols, poc)
+    int up = poc
+    int down = poc
+    for x = 0 to cnum - 1
+        if va_total >= totalmax
+            break
+        uppervol = up < cnum - 1 ? array.get(totalvols, up + 1) : 0.
+        lowervol = down > 0 ? array.get(totalvols, down - 1) : 0.
+        if uppervol == 0 and lowervol == 0
+            break
+        if uppervol >= lowervol
+            va_total += uppervol
+            up += 1
+        else
+            va_total += lowervol
+            down -= 1
+        
+    maxvol = array.max(totalvols)
+    for x = 0 to cnum * 2 - 1
+        array.set(volumes, x, array.get(volumes, x) * bbars / (3 * maxvol))
+    
+    
+    // Draw VP rows
+    var vol_bars = array.new_box(cnum * 2, na)
+    for x = 0 to cnum - 1
+        box.delete(array.get(vol_bars, x))
+        box.delete(array.get(vol_bars, x + cnum))
+        array.set(vol_bars, x, box.new(bar_index - bbars + 1, array.get(levels1, x + 1) - dist, 
+                                       bar_index - bbars + 1 + round(array.get(volumes, x)), array.get(levels1, x) + dist, 
+                                       border_width = 0, 
+                                       bgcolor = x >= down and x <= up ? vup_color : up_color))
+        array.set(vol_bars, x + cnum, box.new(bar_index - bbars + 1 + round(array.get(volumes, x)), array.get(levels1, x + 1) - dist, 
+                                       bar_index - bbars + 1 + round(array.get(volumes, x)) + round(array.get(volumes, x + cnum)), array.get(levels1, x) + dist, 
+                                       border_width = 0, 
+                                       bgcolor = x >= down and x <= up ? vdown_color : down_color))
+    
+    // Draw POC line
+    var line poc_line = na
+    line.delete(poc_line)
+    poc_line := line.new(bar_index - bbars + 1, (array.get(levels1, poc) + array.get(levels1, poc + 1)) / 2, 
+                         bar_index - bbars + 2, (array.get(levels1, poc) + array.get(levels1, poc + 1)) / 2, 
+                         extend = extend.right, 
+                         color = poc_color1, 
+                         width = poc_width)
+
+                         
+                         
+/////
+//END
+////
+
+
+
+
+
+///////////////////////////////
+//SUPERTREND by @KivancOsbilgic
+//////////////////////////////
+
+//@version=4
+
+Periods = input(title="ATR Period", type=input.integer, defval=10, group = "SUPERTREND")
+src = input(hl2, title="Source")
+Multiplier = input(title="ATR Multiplier", type=input.float, step=0.1, defval=3.0)
+changeATR= input(title="Change ATR Calculation Method ?", type=input.bool, defval=true)
+showsignals = input(title="Show Buy/Sell Signals ?", type=input.bool, defval=true)
+highlighting = input(title="Highlighter On/Off ?", type=input.bool, defval=true)
+atr2 = sma(tr, Periods)
+atr= changeATR ? atr(Periods) : atr2
+up=src-(Multiplier*atr)
+up1 = nz(up[1],up)
+up := close[1] > up1 ? max(up,up1) : up
+dn=src+(Multiplier*atr)
+dn1 = nz(dn[1], dn)
+dn := close[1] < dn1 ? min(dn, dn1) : dn
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+upPlot = plot(trend == 1 ? up : na, title="Up Trend", style=plot.style_linebr, linewidth=2, color=color.green)
+buySignal = trend == 1 and trend[1] == -1
+plotshape(buySignal ? up : na, title="UpTrend Begins", location=location.absolute, style=shape.circle, size=size.tiny, color=color.green, transp=0)
+plotshape(buySignal and showsignals ? up : na, title="Buy", text="Buy", location=location.absolute, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white, transp=0)
+dnPlot = plot(trend == 1 ? na : dn, title="Down Trend", style=plot.style_linebr, linewidth=2, color=color.red)
+sellSignal = trend == -1 and trend[1] == 1
+plotshape(sellSignal ? dn : na, title="DownTrend Begins", location=location.absolute, style=shape.circle, size=size.tiny, color=color.red, transp=0)
+plotshape(sellSignal and showsignals ? dn : na, title="Sell", text="Sell", location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white, transp=0)
+mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
+longFillColor = highlighting ? (trend == 1 ? color.green : color.white) : color.white
+shortFillColor = highlighting ? (trend == -1 ? color.red : color.white) : color.white
+fill(mPlot, upPlot, title="UpTrend Highligter", color=longFillColor)
+fill(mPlot, dnPlot, title="DownTrend Highligter", color=shortFillColor)
+alertcondition(buySignal, title="SuperTrend Buy", message="SuperTrend Buy!")
+alertcondition(sellSignal, title="SuperTrend Sell", message="SuperTrend Sell!")
+changeCond = trend != trend[1]
+alertcondition(changeCond, title="SuperTrend Direction Change", message="SuperTrend has changed direction!")
+
+
+
+
+/////////////////////////////////////////////////////////////////
+////VP  @kv4coins I just modified to look better than the old VP
+////////////////////////////////////////////////////////////////
+
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © kv4coins
+
+//@version=4
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// INPUTS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+vp_lookback   = input(defval = 200, 
+                     title   = "Volume Lookback Depth [10-1000]", 
+                     type    = input.integer, 
+                     minval  = 10, 
+                     maxval  = 1000, group = "Volume Profile")
+
+vp_max_bars   = input(defval = 500, 
+                     title   = "Number of Bars [10-500]",
+                     type    = input.integer, 
+                     minval  = 10, 
+                     maxval  = 500)
+
+vp_bar_mult   = input(defval = 50, 
+                     title   = "Bar Length Multiplier [10-100]",
+                     type    = input.integer, 
+                     minval  = 10, 
+                     maxval  = 100)
+
+vp_bar_offset = input(defval = 30, 
+                     title   = "Bar Horizontal Offset [0-100]", 
+                     type    = input.integer, 
+                     minval  = 0, 
+                     maxval  = 100)
+
+vp_bar_width  = input(defval = 2, 
+                     title   = "Bar Width [1-20]", 
+                     type    = input.integer, 
+                     minval  = 1, 
+                     maxval  = 20)
+
+// As suggested by @NXT2017
+vp_delta_type = input(defval = "Both",
+                     title   = "Delta Type",
+                     type    = input.string,
+                     options = ['Both', 'Bullish', 'Bearish'])
+
+vp_poc_show   = input(defval = true, 
+                     title   = "Show POC Line", 
+                     type    = input.bool)
+
+vp_bar_color  = input(defval = color.new(color.gray, 60) , 
+                     title   = "Bar Color", 
+                     type    = input.color)
+
+vp_poc_color  = input(defval = color.new(color.orange, 10), 
+                     title   = "POC Color", 
+                     type    = input.color)
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// VARIABLES
+///////////////////////////////////////////////////////////////////////////////////////////////////
+float vp_Vmax = 0.0
+int vp_VmaxId = 0
+int vp_N_BARS = vp_max_bars
+
+var int vp_first = time
+
+vp_a_P = array.new_float((vp_N_BARS + 1), 0.0)
+vp_a_V = array.new_float(vp_N_BARS, 0.0)
+vp_a_D = array.new_float(vp_N_BARS, 0.0)
+vp_a_W = array.new_int(vp_N_BARS, 0)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// CALCULATIONS
+///////////////////////////////////////////////////////////////////////////////////////////////////
+float vp_HH = highest(high, vp_lookback)
+float vp_LL = lowest(low, vp_lookback)
+
+if barstate.islast
+	float vp_HL = (vp_HH - vp_LL) / vp_N_BARS
+    for j = 1 to (vp_N_BARS + 1)
+        array.set(vp_a_P, (j-1), (vp_LL + vp_HL * j))
+	for i = 0 to (vp_lookback - 1)
+		int Dc = 0
+		array.fill(vp_a_D, 0.0)
+		for j = 0 to (vp_N_BARS - 1)
+			float Pj = array.get(vp_a_P, j)
+			if low[i] < Pj and high[i] > Pj and (vp_delta_type == "Bullish" ? 
+			 close[i] >= open[i] : (vp_delta_type == "Bearish" ? close[i] <= open[i] : true))
+				float Dj = array.get(vp_a_D, j)
+				float dDj = Dj + nz(volume[i])
+				array.set(vp_a_D, j, dDj)
+				Dc := Dc + 1
+		for j = 0 to (vp_N_BARS - 1)
+			float Vj = array.get(vp_a_V, j)
+			float Dj = array.get(vp_a_D, j)
+			float dVj = Vj + ((Dc > 0) ? (Dj / Dc) : 0.0)
+			array.set(vp_a_V, j, dVj)
+	vp_Vmax := array.max(vp_a_V)
+    vp_VmaxId := array.indexof(vp_a_V, vp_Vmax)
+    for j = 0 to (vp_N_BARS - 1)
+        float Vj = array.get(vp_a_V, j)
+        int Aj = round(vp_bar_mult * Vj / vp_Vmax)
+        array.set(vp_a_W, j, Aj)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// PLOTING
+///////////////////////////////////////////////////////////////////////////////////////////////////
+if barstate.isfirst
+    vp_first := time
+vp_change = change(time)
+vp_x_loc = timenow + round(vp_change * vp_bar_offset)
+
+f_setup_bar(n) =>
+    x1 = ((vp_VmaxId == n) and vp_poc_show) ? max(time[vp_lookback], vp_first) : 
+		 (timenow + round(vp_change * (vp_bar_offset - array.get(vp_a_W, n))))
+	ys = array.get(vp_a_P, n)
+    line.new(x1     = x1, 
+             y1     = ys, 
+             x2     = vp_x_loc, 
+             y2     = ys, 
+             xloc   = xloc.bar_time, 
+             extend = extend.none, 
+             color  = (vp_VmaxId == n ? vp_poc_color : vp_bar_color), 
+             style  = line.style_solid, 
+             width  = vp_bar_width)
+
+if barstate.islast
+    for i = 0 to (vp_N_BARS - 1) by 1
+        f_setup_bar(i)
+   
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//// END
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////
+///Engulfing by @rMunoz I just add it to the main indicator of Lupown
+/////////////////////////////////////////////////////////////////////
+
+//strategy("Engulfing Candles") //keep this commented out unless backtesting
+
+show_ENG = input(true,title="--------------Show Engulfing------------", group = "ENGULFING")
+
+openBarPrevious = open[1]
+closeBarPrevious = close[1]
+openBarCurrent = open
+closeBarCurrent = close
+
+//If current bar open is less than equal to the previous bar close AND current bar open is less than previous bar open AND current bar close is greater than previous bar open THEN True
+bullishEngulfing = (openBarCurrent <= closeBarPrevious) and (openBarCurrent < openBarPrevious) and (closeBarCurrent > openBarPrevious)
+//If current bar open is greater than equal to previous bar close AND current bar open is greater than previous bar open AND current bar close is less than previous bar open THEN True
+bearishEngulfing = (openBarCurrent >= closeBarPrevious) and (openBarCurrent > openBarPrevious) and (closeBarCurrent < openBarPrevious)
+
+//bullishEngulfing/bearishEngulfing return a value of 1 or 0; if 1 then plot on chart, if 0 then don't plot
+plotshape(show_ENG ? bullishEngulfing : na, style = shape.triangleup, location = location.belowbar, color =  #008000, size = size.tiny)
+plotshape(show_ENG ? bearishEngulfing : na, style = shape.triangledown , location = location.abovebar, color = #ff0000, size = size.tiny)
+
+
+
+
+///////////////////////////////////
+///VOLUME CANDLE by @andreholanda73, I'm not a programmer but I just add it to have a similar indicator to the X73 Indicator
+///////////////////////////////////
+
+periodo = input(10,'Period', group = "VOLUME CANDLES")
+fator=input(1.50,'Proportion to average for rising candles :(1,25 = 125% of average', minval=0)
+fatorr=input(2,'Proportion to average for climax candles:(1,25 = 125% of average', minval=0)
+u = close > open 
+down=open>close
+pesado = volume>=(ema(volume,periodo)*fator)
+pesadoo = volume>=(ema(volume,periodo)*fatorr)
+barcolor(((pesado and u)and (not pesadoo))? #013220:((pesado and down) and (not pesadoo))?#800000:na)
+barcolor((pesadoo and u)? #013220:(pesadoo and down)? #800000:na)
+
+
+/////////////////////
+////Pivotes by @Eliot66
+////////////////////
+
+//@version=3
+ 
+
+ShowPivots       = input(false,title="Show Pivot Points", group = "PIVOTES")
+pvtLenL          = input(10,minval=1,title="Pivot Length Left Hand Side")
+pvtLenR          = input(10,minval=1,title="Pivot Length Right Hand Side")
+ShowSRLevels     = input(false,title="Show S/R Level Extensions")
+ShowPivotLabels  = input(false)
+maxLvlLen        = input(10,minval=0, title="Maximum S/R Level Extension Length")
+pvthi = pivothigh(pvtLenL,pvtLenR)
+pvtlo = pivotlow(pvtLenL,pvtLenR)
+gc=#dddddd
+plotchar(ShowPivots and not ShowPivotLabels? pvthi[1] :na, title='High Pivot *', location=location.abovebar, color=#013220, offset=-pvtLenR-1,transp=0,size=size.auto)
+plotchar(ShowPivots and not ShowPivotLabels? pvtlo[1] :na,  title='Low Pivot *', location=location.belowbar, color=#800000, offset=-pvtLenR-1,transp=0,size=size.auto)
+plotshape(ShowPivotLabels? pvthi[1]: na, title='Pivot High Label', style=shape.labeldown, location=location.abovebar, color=gc, text="[P.H]", textcolor=#013220, offset=-pvtLenR-1,transp=0)
+plotshape(ShowPivotLabels? pvtlo[1]: na, title='Pivot Low Label', style=shape.labelup, location=location.belowbar, color=gc, text="[P.L]", textcolor=#800000, offset=-pvtLenR-1,transp=0)
+counthi = 0.0 
+counthi := pvthi[1] ? 0 : nz(counthi[1])+1
+countlo = 0.0
+countlo := pvtlo[1] ? 0 : nz(countlo[1])+1
+pvthis = 0.0
+pvthis := pvthi[1] ? high[pvtLenR+1] : pvthis[1]
+pvtlos = 0.0
+pvtlos := pvtlo[1] ? low[pvtLenR+1] :  pvtlos[1]
+hipc = (pvthis != pvthis[1]) ? na : #013220
+lopc = (pvtlos != pvtlos[1]) ? na : #800000
+
+h2l= (pvthis+pvtlos)/2
+plot(ShowSRLevels and (maxLvlLen==0 or counthi<maxLvlLen)? pvthis : na, color=#6a0dad, transp=30, linewidth=2, offset=-pvtLenR-1, title="Top Levels", trackprice=false)
+plot(ShowSRLevels and (maxLvlLen==0 or countlo<maxLvlLen)? pvtlos : na, color=#FFA500, transp=30, linewidth=2, offset=-pvtLenR-1, title="Bottom Levels", trackprice=false)
+//plot( h2l, color= purple, transp=0, linewidth=1, title="HLine",  style=circles)
+
+rl=100
+ds=1000
+rd=1/syminfo.mintick
+irl=close * rd
+irm=irl % rl 
+r=(irm>=rl/2) ? rl : 0
+r100=(irl-irm+r)/rd
+wna=r100 != r100[1] ? na : r100
+
+//fletodetected
+pz=input(100, step=50,title='+/- от цены')
+wna1=wna-pz/rd
+wna2=wna+pz/rd
+plot(wna1, transp=100, style=plot.style_cross)
+plot(wna2, transp=100, style=plot.style_cross)
+
+
+
+///////////
+////CME Gaps by Eliot66
+//////////
+
+//@version=4
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © NeoButane
+
+
+showReal  = input(true, "[On]Chart Price | [Off] CME Price", group = "CME GAP")
+showClean = input(false, "Only Show Weekend Gaps (Cleaner But Misses Holidays/Etc.)")
+hi_chews  = input(false, "Show +/-1% From Close")
+
+not_in_sess = na(security("CME:BTC1!", timeframe.period, close, gaps=barmerge.gaps_on))
+in_sess = security("CME:BTC1!", timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+cmePrice = valuewhen(not_in_sess, in_sess, 0)
+chartPrice = valuewhen(not_in_sess and change(cmePrice), open, 0)
+price = showReal ? chartPrice : cmePrice
+
+
+// Only plot it when CME futures are not in session over the weekend and the current chart uses UTC.
+// Does not account for trading breaks during the weekdays, even if they are caused by hitting the limit breaker or holidays
+only_wkend  = (syminfo.timezone == 'Etc/UTC' or syminfo.type == 'crypto' or syminfo.type == 'index') and
+              ( (hour >= 21 and dayofweek == 6) or (dayofweek == 7) or (hour < 22 and dayofweek == 1) ) ? true : false
+
+derty = showClean ? only_wkend : (not_in_sess ? true : false)
+
+blue = #077EFB
+pink = #F8BBD0
+green = #4CAF50
+peach = #FFD831
+
+
+a = plot(derty ? price : na, "CME Gap", blue, 2, 7)
+b = plot(derty ? hlc3 : na, " ", color.new(blue, 100), 1, 7, display=display.none, editable=false)
+
+plot(derty and hi_chews ? price * 1.01 : na, "+1%", peach, 2, 7)
+plot(derty and hi_chews ? price * 0.99 : na, "-1%", peach, 2, 7)
+
+fill(a, b, close > price ? green : pink, 70)
+
+////////////////////////////////////////////
+
+
+//////////
+//SUPANDRES by @Eliot66
+/////////
+
+//@version=4
+
+prd = input(defval = 10, title="Pivot Period", minval = 4, maxval = 30, group = "Support and Resistances")
+ppsrc = input(defval = 'High/Low', title="Source", options = ['High/Low', 'Close/Open'])
+maxnumpp = input(defval = 20, title =" Maximum Number of Pivot", minval = 5, maxval = 100)
+ChannelW = input(defval = 10, title = "Maximum Channel Width %", minval = 1, group = "Setup")
+maxnumsr = input(defval = 5, title =" Maximum Number of S/R (Max 5)", minval = 1, maxval = 5)
+min_strength = input(defval = 2, title =" Minimum Strength", minval = 1, maxval = 10)
+labelloc = input(defval = 20, title = "Label Location", group = "Colors", tooltip = "Positive numbers reference future bars, negative numbers reference histical bars")
+linestyle = input(defval = 'Dashed', title = "Line Style", options = ['Solid', 'Dotted', 'Dashed'], group = "Colors")
+linewidth = input(defval = 2, title = "Line Width", minval = 1, maxval = 4, group = "Colors")
+resistancecolor = input(defval = color.red, title = "Resistance Color", type = input.color, group = "Colors")
+supportcolor = input(defval = color.lime, title = "Support Color", type = input.color, group = "Colors")
+showpp = input(false, title = "Show Point Points")
+
+float src1 =  ppsrc == 'High/Low' ? high : max(close, open)
+float src2 =  ppsrc == 'High/Low' ? low: min(close, open)
+float ph = pivothigh(src1, prd, prd)
+float pl = pivotlow(src2, prd, prd)
+
+plotshape(ph and showpp, text = "H",  style = shape.labeldown, color = na, textcolor = color.red, location = location.abovebar,  offset = -prd)
+plotshape(pl and showpp, text = "L",  style = shape.labelup, color = na, textcolor = color.lime, location = location.belowbar,  offset = -prd)
+
+Lstyle = linestyle == 'Dashed' ? line.style_dashed :
+         linestyle == 'Solid' ? line.style_solid :
+         line.style_dotted
+                 
+//calculate maximum S/R channel zone width
+prdhighest =  highest(300)
+prdlowest = lowest(300)
+cwidth = (prdhighest - prdlowest) * ChannelW / 100
+
+var pivotvals= array.new_float(0)
+
+if ph or pl
+    array.unshift(pivotvals, ph ? ph : pl)
+    if array.size(pivotvals) > maxnumpp // limit the array size
+        array.pop(pivotvals)
+
+get_sr_vals(ind)=>
+    float lo = array.get(pivotvals, ind)
+    float hi = lo
+    int numpp = 0
+    for y = 0 to array.size(pivotvals) - 1
+        float cpp = array.get(pivotvals, y)
+        float wdth = cpp <= lo ? hi - cpp : cpp - lo
+        if wdth <= cwidth // fits the max channel width?
+            lo := cpp <= lo ? cpp : lo
+            hi := cpp > lo ? cpp : hi
+            numpp += 1
+    [hi, lo, numpp]  
+
+var sr_up_level = array.new_float(0)
+var sr_dn_level = array.new_float(0)
+sr_strength = array.new_float(0)
+
+find_loc(strength)=>
+    ret = array.size(sr_strength)
+    for i = (ret > 0 ? array.size(sr_strength) - 1 : na) to 0
+        if strength <= array.get(sr_strength, i)
+            break
+        ret := i
+    ret
+
+check_sr(hi, lo, strength)=>
+    ret = true
+    for i = 0 to (array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na)
+        //included?
+        if array.get(sr_up_level, i) >= lo and array.get(sr_up_level, i) <= hi  or 
+           array.get(sr_dn_level, i) >= lo and array.get(sr_dn_level, i) <= hi
+            if strength >= array.get(sr_strength, i)
+                array.remove(sr_strength, i)
+                array.remove(sr_up_level, i)
+                array.remove(sr_dn_level, i)
+                ret
+            else
+                ret := false
+            break
+    ret
+
+var sr_lines = array.new_line(11, na)
+var sr_labels = array.new_label(11, na)
+
+for x = 1 to 10
+    rate = 100 * (label.get_y(array.get(sr_labels, x)) - close) / close
+    label.set_text(array.get(sr_labels, x), text = tostring(label.get_y(array.get(sr_labels, x))) + "(" + tostring(rate,'#.##') + "%)")
+    label.set_x(array.get(sr_labels, x), x = bar_index + labelloc)
+    label.set_color(array.get(sr_labels, x), color = label.get_y(array.get(sr_labels, x)) >= close ? color.red : color.lime)
+    label.set_textcolor(array.get(sr_labels, x), textcolor = label.get_y(array.get(sr_labels, x)) >= close ? color.white : color.black)
+    label.set_style(array.get(sr_labels, x), style = label.get_y(array.get(sr_labels, x)) >= close ? label.style_labeldown : label.style_labelup)
+    line.set_color(array.get(sr_lines, x), color = line.get_y1(array.get(sr_lines, x)) >= close ? resistancecolor : supportcolor) 
+
+if ph or pl
+    //because of new calculation, remove old S/R levels
+    array.clear(sr_up_level)
+    array.clear(sr_dn_level)
+    array.clear(sr_strength)
+    //find S/R zones
+    for x = 0 to array.size(pivotvals) - 1
+        [hi, lo, strength] = get_sr_vals(x)
+        if check_sr(hi, lo, strength)
+            loc = find_loc(strength)
+            // if strength is in first maxnumsr sr then insert it to the arrays 
+            if loc < maxnumsr and strength >= min_strength
+                array.insert(sr_strength, loc, strength)
+                array.insert(sr_up_level, loc, hi)
+                array.insert(sr_dn_level, loc, lo)
+                // keep size of the arrays = 5
+                if array.size(sr_strength) > maxnumsr
+                    array.pop(sr_strength)
+                    array.pop(sr_up_level)
+                    array.pop(sr_dn_level)
+    
+    for x = 1 to 10
+        line.delete(array.get(sr_lines, x))
+        label.delete(array.get(sr_labels, x))
+       
+    for x = 0 to (array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na)
+        float mid = round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        rate = 100 * (mid - close) / close
+        array.set(sr_labels, x + 1, 
+          label.new( x = bar_index + labelloc, 
+                     y = mid, text = tostring(mid) + "(" + tostring(rate,'#.##') + "%)", 
+                     color = mid >= close ? color.red : color.lime,
+                     textcolor = mid >= close ? color.white : color.black, 
+                     style = mid >= close ? label.style_labeldown : label.style_labelup))
+                     
+        array.set(sr_lines, x + 1, 
+                  line.new(x1 = bar_index, y1 = mid, x2 = bar_index - 1, y2 = mid, 
+                  extend = extend.both,
+                  color = mid >= close ? resistancecolor : supportcolor, 
+                  style = Lstyle, 
+                  width = linewidth))
+
+f_crossed_over()=>
+    ret = false
+    for x = 0 to (array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na)
+        float mid = round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] <= mid and close > mid
+            ret := true
+    ret
+
+f_crossed_under()=>
+    ret = false
+    for x = 0 to (array.size(sr_up_level) > 0 ? array.size(sr_up_level) - 1 : na)
+        float mid = round_to_mintick((array.get(sr_up_level, x) + array.get(sr_dn_level, x)) / 2)
+        if close[1] >= mid and close < mid
+            ret := true
+    ret
+
+alertcondition(f_crossed_over(), title='Resistance Broken', message='Resistance Broken')
+alertcondition(f_crossed_under(), title='Support Broken', message='Support Broken')
+
+
+
